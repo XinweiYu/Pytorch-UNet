@@ -12,6 +12,26 @@ from eval import eval_net
 from unet import UNet
 from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
 
+def BinarizeMask(true_masks,n_classes=1):
+    # binarize the mask for each class.
+    #num_image=true_masks.shape[0]
+    #masks=np.zeros(true_masks.shape)
+#    for i in range(num_image):
+#        image=true_masks[i]
+    masks=list()
+    for j in range(n_classes):
+        mask=true_masks==j+1
+        tmp=np.zeros(true_masks.shape)
+        tmp[mask]=1
+        masks.append(tmp)
+        
+#        mask=(image==j+1 for j in range(n_classes))
+#        masks.append(np.array(mask))
+    masks=np.array(masks)  
+    masks=np.moveaxis(masks,[0,1,2,3],[-1,0,1,2])
+    return np.array(masks)
+    
+    
 def train_net(net,
               epochs=5,
               batch_size=1,
@@ -19,13 +39,17 @@ def train_net(net,
               val_percent=0.05,
               save_cp=True,
               gpu=False,
-              img_scale=0.5):
+              img_scale=0.5,
+              dir_mask = 'data/train_masks/',
+              n_classes=1):
 
     dir_img = 'data/train/'
-    dir_mask = 'data/train_masks/'
+    #dir_mask = 'data/train_masks/'
     dir_checkpoint = 'checkpoints/'
-
+    
+    #Returns a list of the ids in the directory
     ids = get_ids(dir_img)
+    # what is this?
     ids = split_ids(ids)
 
     iddataset = split_train_val(ids, val_percent)
@@ -64,7 +88,8 @@ def train_net(net,
         for i, b in enumerate(batch(train, batch_size)):
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
-
+            true_masks = BinarizeMask(true_masks,n_classes)
+            
             imgs = torch.from_numpy(imgs)
             true_masks = torch.from_numpy(true_masks)
 
@@ -119,8 +144,8 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-
-    net = UNet(n_channels=3, n_classes=1)
+    n_classes=8
+    net = UNet(n_channels=3, n_classes=n_classes)
 
     if args.load:
         net.load_state_dict(torch.load(args.load))
@@ -135,8 +160,10 @@ if __name__ == '__main__':
                   epochs=args.epochs,
                   batch_size=args.batchsize,
                   lr=args.lr,
-                  gpu=args.gpu,
-                  img_scale=args.scale)
+                  gpu=True,#args.gpu,
+                  img_scale=args.scale,
+                  dir_mask = 'data/train_mask_direction/',
+                  n_classes=n_classes)
     except KeyboardInterrupt:
         torch.save(net.state_dict(), 'INTERRUPTED.pth')
         print('Saved interrupt')
