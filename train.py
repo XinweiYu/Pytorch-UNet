@@ -115,7 +115,7 @@ def train_net(net,
 #            print('Checkpoint {} saved !'.format(epoch + 1))
         
     if save_cp:
-        torch.save(net.state_dict(),dir_checkpoint + 'Channel{}dice{}.pth'.format(n_classes,best_dice))                           
+        torch.save(best_model_wts.state_dict(),dir_checkpoint + 'Channel{}dice{}.pth'.format(n_classes,best_dice))                           
         print('Model saved, best val_dice:{} !'.format(best_dice))
                 
 def get_args():
