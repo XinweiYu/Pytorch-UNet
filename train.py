@@ -10,27 +10,8 @@ from torch import optim
 
 from eval import eval_net
 from unet import UNet
-from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
+from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch,BinarizeMask
 
-def BinarizeMask(true_masks,n_classes=1):
-    # binarize the mask for each class.
-    #num_image=true_masks.shape[0]
-    #masks=np.zeros(true_masks.shape)
-#    for i in range(num_image):
-#        image=true_masks[i]
-    masks=list()
-    for j in range(n_classes):
-        mask=true_masks==j+1
-        tmp=np.zeros(true_masks.shape)
-        tmp[mask]=1
-        masks.append(tmp)
-        
-#        mask=(image==j+1 for j in range(n_classes))
-#        masks.append(np.array(mask))
-    masks=np.array(masks)  
-    masks=np.moveaxis(masks,[0,1,2,3],[-1,0,1,2])
-    return np.array(masks)
-    
     
 def train_net(net,
               epochs=5,
@@ -38,12 +19,13 @@ def train_net(net,
               lr=0.1,
               val_percent=0.05,
               save_cp=True,
-              gpu=False,
+              gpu=True,
               img_scale=0.5,
               dir_mask = 'data/train_masks/',
               n_classes=1):
 
-    dir_img = 'data/train/'
+    dir_img = '../data_car/train/'
+    #dir_img = '../Data/data_unet/data/train/'
     #dir_mask = 'data/train_masks/'
     dir_checkpoint = 'checkpoints/'
     
@@ -118,9 +100,10 @@ def train_net(net,
             print('Validation Dice Coeff: {}'.format(val_dice))
 
         if save_cp:
-            torch.save(net.state_dict(),
-                       dir_checkpoint + 'CP{}.pth'.format(epoch + 1))
-            print('Checkpoint {} saved !'.format(epoch + 1))
+            if epoch==epochs:
+              torch.save(net.state_dict(),
+                       dir_checkpoint + 'Chl{}CP{}.pth'.format(n_classes, epoch + 1))
+              print('Checkpoint {} saved !'.format(epoch + 1))
 
 
 
@@ -144,7 +127,7 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    n_classes=8
+    n_classes=1
     net = UNet(n_channels=3, n_classes=n_classes)
 
     if args.load:
@@ -162,7 +145,8 @@ if __name__ == '__main__':
                   lr=args.lr,
                   gpu=True,#args.gpu,
                   img_scale=args.scale,
-                  dir_mask = 'data/train_mask_direction/',
+                  dir_mask = '../data_car/train_mask/',
+                  #dir_mask = '../Data/data_unet/data/train_mask_centerline/',
                   n_classes=n_classes)
     except KeyboardInterrupt:
         torch.save(net.state_dict(), 'INTERRUPTED.pth')

@@ -8,8 +8,8 @@ import torch.nn.functional as F
 from PIL import Image
 
 from unet import UNet
-from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks, dense_crf
-from utils import plot_img_and_mask
+from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks#, dense_crf
+#from utils import plot_img_and_mask
 
 from torchvision import transforms
 
@@ -62,8 +62,8 @@ def predict_img(net,
 
     full_mask = merge_masks(left_mask_np, right_mask_np, img_width)
 
-    if use_dense_crf:
-        full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
+    #if use_dense_crf:
+        #full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
 
     return full_mask > out_threshold
 
@@ -71,7 +71,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', '-m', default='MODEL.pth',
+    parser.add_argument('--model', '-m', default='/home/xinweiy/github/checkpoints/CP301.pth',
                         metavar='FILE',
                         help="Specify the file in which is stored the model"
                              " (default : 'MODEL.pth')")
@@ -97,7 +97,7 @@ def get_args():
                         default=0.5)
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
-                        default=0.5)
+                        default=0.3)
 
     return parser.parse_args()
 
@@ -118,7 +118,20 @@ def get_output_filenames(args):
     return out_files
 
 def mask_to_image(mask):
-    return Image.fromarray((mask * 255).astype(np.uint8))
+    # unstack the image and transform
+    if len(mask.shape)>2:
+      n_channel=mask.shape[2]
+    else:
+      mask=np.expand_dims(mask,axis=2)
+      n_channel=1
+      
+    new_mask=np.zeros((mask.shape[0],mask.shape[1]))
+    for i in range(n_channel):
+      new_mask[mask[:,:,i]==i+1]=i+1
+    
+    return Image.fromarray((new_mask * 255/n_channel).astype(np.uint8))
+  
+
 
 if __name__ == "__main__":
     args = get_args()
@@ -154,9 +167,9 @@ if __name__ == "__main__":
                            use_dense_crf= not args.no_crf,
                            use_gpu=not args.cpu)
 
-        if args.viz:
-            print("Visualizing results for image {}, close to continue ...".format(fn))
-            plot_img_and_mask(img, mask)
+        #if args.viz:
+            #print("Visualizing results for image {}, close to continue ...".format(fn))
+            #plot_img_and_mask(img, mask)
 
         if not args.no_save:
             out_fn = out_files[i]

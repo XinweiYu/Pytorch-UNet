@@ -30,7 +30,7 @@ def to_cropped_imgs(ids, dir, suffix, scale):
 def get_imgs_and_masks(ids, dir_img, dir_mask, scale):
     """Return all the couples (img, mask)"""
 
-    imgs = to_cropped_imgs(ids, dir_img, '.png', scale)
+    imgs = to_cropped_imgs(ids, dir_img, '.jpg', scale)
 
     # need to transform from HWC to CHW
     imgs_switched = map(hwc_to_chw, imgs)
@@ -43,6 +43,27 @@ def get_imgs_and_masks(ids, dir_img, dir_mask, scale):
 
 
 def get_full_img_and_mask(id, dir_img, dir_mask):
-    im = Image.open(dir_img + id + '.png')
+    im = Image.open(dir_img + id + '.jpg')
     mask = Image.open(dir_mask + id + '_mask.gif')
     return np.array(im), np.array(mask)
+  
+
+def BinarizeMask(true_masks,n_classes=1):
+    # binarize the mask for each class.
+    #num_image=true_masks.shape[0]
+    #masks=np.zeros(true_masks.shape)
+#    for i in range(num_image):
+#        image=true_masks[i]
+    masks=list()
+    for j in range(n_classes):
+        mask=true_masks==j+1
+        tmp=np.zeros(true_masks.shape)
+        tmp[mask]=1
+        masks.append(tmp)
+        
+#        mask=(image==j+1 for j in range(n_classes))
+#        masks.append(np.array(mask))
+    masks=np.array(masks)  
+    masks=np.moveaxis(masks,[0,1,2,3],[-1,0,1,2])
+    return masks.astype('float32')
+    
