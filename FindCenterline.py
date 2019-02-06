@@ -59,7 +59,7 @@ class Graph:
         else:
           print("end point not reached from start point")
         
-        return path
+        return path[::-1]
     
     
     ''' The function to find shortest paths from given vertex. 
@@ -212,7 +212,7 @@ class FindCenterline(object):
           tmp_cord = np.array(self.vort_cord[i]) + np.array(displacement)
           label = self.img_index[tmp_cord[0],tmp_cord[1]]
           if label>0:
-            self.g.addEdge(i, label, self.weight1) 
+            self.g.addEdge(i, label, self.weight2) 
         
 
 if __name__ == "__main__":

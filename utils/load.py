@@ -46,7 +46,7 @@ def get_full_img_and_mask(id, dir_img, dir_mask):
     im = Image.open(dir_img + id + '.jpg')
     mask = Image.open(dir_mask + id + '_mask.gif')
     return np.array(im), np.array(mask)
-  
+
 
 def BinarizeMask(true_masks,n_classes=1):
     # binarize the mask for each class.
@@ -63,7 +63,13 @@ def BinarizeMask(true_masks,n_classes=1):
         
 #        mask=(image==j+1 for j in range(n_classes))
 #        masks.append(np.array(mask))
-    masks=np.array(masks)  
-    masks=np.moveaxis(masks,[0,1,2,3],[-1,0,1,2])
+
+
+    masks=np.array(masks)
+    n_dim=len(masks.shape)
+    #print(n_dim)
+    #print(masks.shape)
+    if n_dim==4:  
+        masks = np.moveaxis(masks,[0,1,2,3],[1,0,2,3])
     return masks.astype('float32')
-    
+
