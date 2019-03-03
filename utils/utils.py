@@ -23,6 +23,7 @@ def resize_and_crop(pilimg, scale=0.5, final_height=None):
     newW = int(w * scale)
     newH = int(h * scale)
 
+
     if not final_height:
         diff = 0
     else:
@@ -40,6 +41,7 @@ def batch(iterable, batch_size):
     for i, t in enumerate(iterable):
         b.append(t)
         if (i + 1) % batch_size == 0:
+            
             yield b
             b = []
 

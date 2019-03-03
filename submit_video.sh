@@ -14,7 +14,6 @@
 #SBATCH --mail-user=xinweiy@princeton.edu
 # Load anaconda3 environment
 cd /home/xinweiy/github/Pytorch-UNet
-module load anaconda3
-python3 ./train.py -e 5 -m 3  -l 1e-1 -w 1
 
-#-c /home/xinweiy/github/checkpoints/direction2.pth
+module load anaconda3
+python3 ./CenterlineFromVideo.py

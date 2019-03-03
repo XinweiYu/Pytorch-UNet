@@ -1,0 +1,20 @@
+/home/xinweiy/.local/lib/python3.7/site-packages/torch/nn/modules/upsampling.py:129: UserWarning: nn.Upsample is deprecated. Use nn.functional.interpolate instead.
+  warnings.warn("nn.{} is deprecated. Use nn.functional.interpolate instead.".format(self.name))
+/home/xinweiy/.local/lib/python3.7/site-packages/torch/nn/functional.py:1332: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
+  warnings.warn("nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.")
+/home/xinweiy/.local/lib/python3.7/site-packages/skimage/morphology/misc.py:127: UserWarning: Only one label was provided to `remove_small_objects`. Did you mean to use a boolean array?
+  warn("Only one label was provided to `remove_small_objects`. "
+Using CUDA version of the net, prepare your GPU !
+Model loaded !
+1
+2
+3
+4
+Traceback (most recent call last):
+  File "./CenterlineFromVideo.py", line 141, in <module>
+    cline = clineFromVideo.GetCenterlines(path)  
+  File "./CenterlineFromVideo.py", line 98, in GetCenterlines
+    cline = self.SelectCline(clines)
+  File "./CenterlineFromVideo.py", line 129, in SelectCline
+    return clines[head_idx][tail_idx]
+IndexError: list index out of range

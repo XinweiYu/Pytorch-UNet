@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "./CenterlineFromVideo.py", line 17, in <module>
+    from FindCenterline import FindCenterline
+  File "/home/xinweiy/github/Pytorch-UNet/FindCenterline.py", line 230
+    def cline_from_skel(self, img_c, img_dir, cline_dict, ref_head=[], ref_tail=[], head_last):
+                       ^
+SyntaxError: non-default argument follows default argument

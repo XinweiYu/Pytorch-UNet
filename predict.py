@@ -42,6 +42,7 @@ def predict_img(net,
 
     full_mask_all=list()
     with torch.no_grad():
+
         output_left = net(X_left)
         output_right = net(X_right)
 
@@ -74,7 +75,9 @@ def predict_img(net,
 
     #if use_dense_crf:
         #full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
+
     full_mask_all = np.array(full_mask_all).astype(np.float32)
+
 
     return full_mask_all > out_threshold
 
@@ -82,7 +85,7 @@ def predict_img(net,
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', '-m', default='MODEL.pth',
+    parser.add_argument('--model', '-m', default='/home/xinweiy/github/checkpoints/CP301.pth',
                         metavar='FILE',
                         help="Specify the file in which is stored the model"
                              " (default : 'MODEL.pth')")
@@ -132,6 +135,7 @@ def get_output_filenames(args):
 def mask_to_image(mask):
     # unstack the image and transform
     if len(mask.shape)>2:
+
       n_channel=mask.shape[0]
     else:
       mask=np.expand_dims(mask,axis=0)
@@ -143,6 +147,7 @@ def mask_to_image(mask):
     
     return Image.fromarray((new_mask * 255/n_channel).astype(np.uint8))
   
+
 
 if __name__ == "__main__":
     args = get_args()
@@ -177,11 +182,13 @@ if __name__ == "__main__":
                            out_threshold=args.mask_threshold,
                            use_dense_crf= not args.no_crf,
                            use_gpu=not args.cpu)
+
         #print(mask.shape)
         #if args.viz:
             #print("Visualizing results for image {}, close to continue ...".format(fn))
             #plot_img_and_mask(img, mask)
         #print(np.where(mask))
+
         if not args.no_save:
             out_fn = out_files[i]
             result = mask_to_image(mask)
