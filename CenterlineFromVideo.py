@@ -18,6 +18,7 @@ from FindCenterline import FindCenterline
 from unet import UNet
 from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks#, dense_crf
 #from utils import plot_img_and_mask
+
 #import matplotlib.pyplot as plt
 import time
 import pickle
@@ -38,6 +39,7 @@ class CenterlineFromVideo(object):
     self.erode = erode
     self.dilation = dilation
     if not cpu:
+
         print("Using CUDA version of the net, prepare your GPU !")
         self.net_cline.cuda()
         self.net_cline.load_state_dict(torch.load(self.model_cline))
@@ -52,6 +54,7 @@ class CenterlineFromVideo(object):
         self.net_tip.load_state_dict(torch.load(self.model_tip, map_location='cpu'))    
         self.net_direction.cpu()
         self.net_direction.load_state_dict(torch.load(self.model_direction, map_location='cpu'))    
+
     print("Model loaded !")    
     self.fCline = FindCenterline(tip_r=3)
     self.cline = list()
@@ -242,6 +245,7 @@ class CenterlineFromVideo(object):
 if __name__ == "__main__":
   clineFromVideo = CenterlineFromVideo()
   path = "/scratch/network/xinweiy/cam1.avi"
+
   tic = time.time()
   cline = clineFromVideo.Video2Centerlines(path) 
   toc = time.time()
@@ -267,3 +271,4 @@ if __name__ == "__main__":
 
 
   
+

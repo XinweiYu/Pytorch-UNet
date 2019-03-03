@@ -17,6 +17,7 @@ import copy
 
 
 
+
 def weighted_binary_cross_entropy(sigmoid_x, targets, pos_weight, weight=None, size_average=True, reduce=True):
     """
     Args:
@@ -80,6 +81,7 @@ class WeightedBCELoss(nn.Module):
 
 
 
+
     
 def train_net(net,
               epochs=100,
@@ -95,7 +97,9 @@ def train_net(net,
 
 
 
+
     dir_img = '/scratch/network/xinweiy/data/train/'
+
     #dir_img = '../Data/data_unet/data/train/'
 
 
@@ -200,8 +204,10 @@ def train_net(net,
 #            print('Checkpoint {} saved !'.format(epoch + 1))
         
     if save_cp:
+
         net.load_state_dict(best_model_wts)
         torch.save(net.state_dict(),dir_checkpoint + 'Channel{}dice{}.pth'.format(n_classes,best_dice))                           
+
         print('Model saved, best val_dice:{} !'.format(best_dice))
                 
 
@@ -242,7 +248,9 @@ if __name__ == '__main__':
         dir_mask = '/scratch/network/xinweiy/data/train_mask_direction/'
 
 
+
     pos_weight = args.pos_weight
+
     net = UNet(n_channels=3, n_classes=n_classes)
 
     if args.load:

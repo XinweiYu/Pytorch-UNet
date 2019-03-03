@@ -17,6 +17,7 @@ from skimage import morphology
 #import matplotlib.pyplot as plt
 
 
+
 # Graph is represented using adjacency list. Every 
 # node of adjacency list contains vertex number of 
 # the vertex to which edge connects. It also contains 
@@ -59,7 +60,7 @@ class Graph:
             end = parent[end]
         #else:
           #print("end point not reached from start point")
-        
+
         return path[::-1]
     
     
@@ -84,6 +85,7 @@ class Graph:
         step = [float("Inf")] * (self.V) 
         dist[s] = 0
         step[s] = 0
+
         parent = [float("Inf")]* (self.V)
   
         # Process vertices in topological order 
@@ -97,6 +99,7 @@ class Graph:
                 if dist[node] > dist[i] + weight: 
                     dist[node] = dist[i] + weight
                     step[node] = step[i] + 1
+
                     parent[node] = i
   
 #        # Print the calculated shortest distances 
@@ -109,6 +112,7 @@ class Graph:
           paths.append(self.GetPathway(s, e[i], dist, parent))
           penalty.append(dist[e[i]])
         return paths, penalty
+
 
 
 class FindCenterline(object):
@@ -124,6 +128,7 @@ class FindCenterline(object):
                      5:[-1,-1],
                      6:[0,-1],
                      7:[1,-1]} 
+
     self.switcher2 = {0:[-1,-1],
                      1:[-1,0],
                      2:[-1,1],
@@ -382,7 +387,7 @@ class FindCenterline(object):
       self.skeleton_tip(self.img_skel)
       
       
-    
+
     cord_x, cord_y = np.where(img_c)
     # store the vertex index in the img_index image
     # pixel value <0 if not a worm, value is the index in vortex.
@@ -406,6 +411,7 @@ class FindCenterline(object):
       self.AddEdge(i,direction)
     
     # Use the graph to run shortest path.
+
     ends = list()
     for i in range(len(tail_pts)):
       ends.append(self.img_index[tail_pts[i][0],tail_pts[i][1]])
@@ -422,7 +428,7 @@ class FindCenterline(object):
       clines.append(cline_tails)
     # output the centerline.
     return clines      
-  
+
   def GetTip(self, img_tip, tip_ref=[]):
 #    img_tip1 = scipy.signal.convolve2d(img_tip,self.mask)
 #    threshold, upper, lower = 10, 1, 0
@@ -443,6 +449,7 @@ class FindCenterline(object):
       tips = tips[np.argsort(dist)]
       
     return np.array(tips)
+
   
   
   def AddEdge(self, i, direction):
@@ -478,6 +485,7 @@ class FindCenterline(object):
           label = self.img_index[tmp_cord[0],tmp_cord[1]]
           if label>0:
             self.g.addEdge(i, label, self.weight2) 
+
           
           displacement = self.switcher[np.mod(j+1,8)]
           tmp_cord = np.array(self.vort_cord[i]) + np.array(displacement)
@@ -490,6 +498,7 @@ class FindCenterline(object):
           label = self.img_index[tmp_cord[0],tmp_cord[1]]
           if label>0:
             self.g.addEdge(i, label, self.weight2)  
+
 
 if __name__ == "__main__":
   path_cline = "C:\\Users\\xinweiy\\Desktop\\github\\Pytorch-UNet\\106_cline.npy"
@@ -505,6 +514,7 @@ if __name__ == "__main__":
   #selem = skimage.morphology.disk(5)
   for i in range(len(img_dir)):
     img_dir[i,:,:] = morphology.binary_dilation(img_dir[i,:,:],selem)
+
     
     
   fCline = FindCenterline(tip_r=3) 
