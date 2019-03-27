@@ -138,7 +138,7 @@ def train_net(net,
 
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.9)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
 
     #pos_weight = 100 * torch.ones((1,1))
 
@@ -159,9 +159,9 @@ def train_net(net,
         val = get_imgs_and_masks(iddataset['val'], dir_img, dir_mask, img_scale)
 
         epoch_loss = 0
-        print("I am here")    
+   
         for i, b in enumerate(batch(train, batch_size)):
-            print(i)
+
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
             #print(true_masks.shape)

@@ -25,24 +25,57 @@ def predict_img(net,
     img_width = full_img.size[0]
 
     img = resize_and_crop(full_img, scale=scale_factor)
-
+    w = img.shape[0]
+    h = img.shape[1]
+    if w==h:
+      is_square = 1
+    else:
+      is_square = 0
+    
     img = normalize(img)
 
-    left_square, right_square = split_img_into_squares(img)
+    if is_square:
+      left_square = img
+      left_square = hwc_to_chw(left_square)
+      X_left = torch.from_numpy(left_square).unsqueeze(0)
+      if use_gpu:
+        X_left = X_left.cuda()
+      full_mask_all=list()
+      with torch.no_grad():
+        output_left = net(X_left)
+        left_probs = output_left.squeeze(0)
+        tf = transforms.Compose(
+            [
+                transforms.ToPILImage(),
+                transforms.Resize(img_height),
+                transforms.ToTensor()
+            ]
+        )
 
-    left_square = hwc_to_chw(left_square)
-    right_square = hwc_to_chw(right_square)
+        for i in range(left_probs.size(0)):
+          left_probs_new = left_probs.cpu().numpy()
+          A = np.array([left_probs_new[i,:,:]]) 
+          A = torch.from_numpy(A)
+          A = tf(A.cpu())
+          left_mask_np = A.squeeze().cpu().numpy()
 
-    X_left = torch.from_numpy(left_square).unsqueeze(0)
-    X_right = torch.from_numpy(right_square).unsqueeze(0)
+          full_mask = left_mask_np
+          full_mask_all.append(full_mask)
+    else:      
+      left_square, right_square = split_img_into_squares(img)
 
-    if use_gpu:
+      left_square = hwc_to_chw(left_square)
+      right_square = hwc_to_chw(right_square)
+
+      X_left = torch.from_numpy(left_square).unsqueeze(0)
+      X_right = torch.from_numpy(right_square).unsqueeze(0)
+
+      if use_gpu:
         X_left = X_left.cuda()
         X_right = X_right.cuda()
 
-    full_mask_all=list()
-    with torch.no_grad():
-
+      full_mask_all=list()
+      with torch.no_grad():
         output_left = net(X_left)
         output_right = net(X_right)
 

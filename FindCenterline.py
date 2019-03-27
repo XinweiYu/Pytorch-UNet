@@ -142,10 +142,10 @@ class FindCenterline(object):
     self.weight2 = 10
     
     
-  def skeletonize_cline(self, img_cline, head_last):
-    sz = 5
+  def skeletonize_cline(self, img_cline, head_last, tail_last):
+    sz = 3
     sz_dir = 10
-    sz_open = 5
+    sz_open = 4
 
     #img_skel = morphology.skeletonize(img_cline)
     img_skel = morphology.thin(img_cline)
@@ -164,83 +164,103 @@ class FindCenterline(object):
         branch_head = head_last - np.array([[r,c]])
         dis_branch_head = np.sqrt(np.sum(branch_head**2))
       else:
-        dis_branch_head = 0
+        dis_branch_head = 1000
         branch_head = np.array([[0,0]])
-      # only deal with branch point that are close to head.          
-      if np.sum(pix_neighbourhood) > 3 and dis_branch_head < 50:
-        do_open = True
-        if len(head_last):
-          branch_head = branch_head / np.linalg.norm(branch_head, axis=1)[:, np.newaxis]      
-        tmp = np.copy(img_skel[r-sz_dir:r+sz_dir+1, c-sz_dir:c+sz_dir+1])
-        tmp[1:-1, 1:-1] = 0
-        tmp = morphology.label(tmp)
-        branch_pts = list()
-        num_branches = np.max(tmp)
-        for i in range(num_branches):
-          (x,y) = np.nonzero(tmp==i+1) 
-          branch_pts.append((x[0], y[0]))
-        branch_pts = np.array(branch_pts) - sz_dir
-        # normalize branch points direction
-        branch_pts_norm = branch_pts/np.linalg.norm(branch_pts, axis=1)[:, np.newaxis]
-        direct_branch = branch_pts_norm.dot(branch_pts_norm.T)
-        # the score of strightness. higher score means not straight with others
-        score_straight = np.sum(direct_branch, axis=0) - 1
-        score_head = branch_pts_norm.dot(branch_head.T)[:,0]
-        score = score_straight + (num_branches-1) * score_head
-        #ind = np.unravel_index(np.argmin(direct_branch, axis=None), direct_branch.shape)
-        ind = np.argsort(score)[0:2].tolist()
-#        plt.figure(figsize=(20,10))
-#        plt.imshow(img_cline)
-#        print(head_last)
-#        plt.scatter(head_last[1],head_last[0], s=50,c='black',alpha=0.5,marker='x')
-#        plt.scatter(c,r, s=50,c='red',alpha=0.5,marker='x')
-#        plt.show()
-        for i in range(num_branches):
-          if not i in ind:
-            img_cline[r+branch_pts[i,0]-sz:r+branch_pts[i,0]+sz+1,
-                      c+branch_pts[i,1]-sz:c+branch_pts[i,1]+sz+1] = 0
-                    
-#        print(direct_branch)
-#        plt.figure(figsize=(20,10))
-#        plt.imshow(tmp)
-#        plt.show()
         
+      if len(tail_last):
+        branch_tail = tail_last - np.array([[r,c]])
+        dis_branch_tail = np.sqrt(np.sum(branch_tail**2))
+      else:
+        dis_branch_tail = 1000
+        branch_tail = np.array([[0,0]])  
+      
+      open_branch = (dis_branch_tail<50) or (dis_branch_head<50)
+# only deal with branch point that are close to head.          
+      if np.sum(pix_neighbourhood) > 3 and open_branch:
+        if dis_branch_head < dis_branch_tail:
+          do_open = True
+          if len(head_last):
+            branch_head = branch_head / np.linalg.norm(branch_head, axis=1)[:, np.newaxis]      
+          tmp = np.copy(img_skel[r-sz_dir:r+sz_dir+1, c-sz_dir:c+sz_dir+1])
+          tmp[1:-1, 1:-1] = 0
+          tmp = morphology.label(tmp)
+          branch_pts = list()
+          num_branches = np.max(tmp)
+          for i in range(num_branches):
+            (x,y) = np.nonzero(tmp==i+1) 
+            branch_pts.append((x[0], y[0]))
+          
+          if len(branch_pts)==3:
+            branch_pts = np.array(branch_pts) - sz_dir
+            # normalize branch points direction
+            branch_pts_norm = branch_pts/np.linalg.norm(branch_pts, axis=1)[:, np.newaxis]
+            direct_branch = branch_pts_norm.dot(branch_pts_norm.T)
+            # the score of strightness. higher score means not straight with others
+            score_straight = np.sum(direct_branch, axis=0) - 1
+            score_head = branch_pts_norm.dot(branch_head.T)[:,0]
+            score = score_straight +  score_head
+            #ind = np.unravel_index(np.argmin(direct_branch, axis=None), direct_branch.shape)
+            ind = np.argsort(score)[::-1][0:2].tolist()
+            score_diff = np.abs(score[ind[0]]-score[ind[1]])
 
-#    plt.figure(figsize=(20,10))
-#    plt.imshow(img_cline)
-#    plt.show()
-#    
-#    plt.figure(figsize=(20,10))
-#    plt.imshow(img_skel)
-#    plt.show()
-#    
-    if do_open:
-        selem = morphology.disk(sz_open)
-        img_cline = morphology.binary_opening(img_cline, selem)
-#    plt.figure(figsize=(20,10))
-#    plt.imshow(img_cline)
-#    plt.show()
+            if score[ind[0]] > 0.5:
+              i = ind[0]
+              img_cline[r+branch_pts[i,0]-sz:r+branch_pts[i,0]+sz+1,
+                          c+branch_pts[i,1]-sz:c+branch_pts[i,1]+sz+1] = 0     
+              print('Delete branch:{},{}. score:{}'.format( branch_pts[i,0], branch_pts[i,1], score[ind[0]]))         
+          
+        else: 
+          do_open = True
+          if len(tail_last):
+            branch_tail = branch_tail / np.linalg.norm(branch_tail, axis=1)[:, np.newaxis]      
+          tmp = np.copy(img_skel[r-sz_dir:r+sz_dir+1, c-sz_dir:c+sz_dir+1])
+          tmp[1:-1, 1:-1] = 0
+          tmp = morphology.label(tmp)
+          branch_pts = list()
+          num_branches = np.max(tmp)
+          for i in range(num_branches):
+            (x,y) = np.nonzero(tmp==i+1) 
+            branch_pts.append((x[0], y[0]))
+          
+          if len(branch_pts)==3:
+            branch_pts = np.array(branch_pts) - sz_dir
+            # normalize branch points direction
+            branch_pts_norm = branch_pts/np.linalg.norm(branch_pts, axis=1)[:, np.newaxis]
+            direct_branch = branch_pts_norm.dot(branch_pts_norm.T)
+            # the score of strightness. higher score means not straight with others
+            score_straight = np.sum(direct_branch, axis=0) - 1
+            score_tail = branch_pts_norm.dot(branch_tail.T)[:,0]
+            score = score_straight +  score_tail
+            #ind = np.unravel_index(np.argmin(direct_branch, axis=None), direct_branch.shape)
+            ind = np.argsort(score)[::-1][0:2].tolist()
+            score_diff = np.abs(score[ind[0]]-score[ind[1]])
 
-#    
+            if score[ind[0]] > 0.5:
+              i = ind[0]
+              img_cline[r+branch_pts[i,0]-sz:r+branch_pts[i,0]+sz+1,
+                          c+branch_pts[i,1]-sz:c+branch_pts[i,1]+sz+1] = 0
+                          
+              print('Delete branch:{},{}. score:{}'.format( branch_pts[i,0], branch_pts[i,1], score[ind[0]])) 
+ 
+    if do_open:                  
+      selem = morphology.disk(sz_open)
+      img_cline = morphology.binary_opening(img_cline, selem)
+
+    
     img_skel = morphology.skeletonize(img_cline)
-
-#    plt.figure(figsize=(20,10))
-#    plt.imshow(img_skel)
-#    plt.show()
     
-    return img_skel
+    return img_skel    
     
     
-    
-  def cline_from_skel(self, img_c, img_dir, cline_dict, ref_head=[], ref_tail=[], head_last=[]):
+  def cline_from_skel(self, img_c, img_dir, cline_dict, ref_head=[], ref_tail=[], head_last=[], tail_last=[]):
     img_cline = np.copy(img_c[0,:,:])   
     self.img_dir = img_dir
     # Get the skeleton image from img_cline
-    img_s = self.skeletonize_cline(img_cline, head_last)
-    img_walk = np.copy(img_s)
+    img_s = self.skeletonize_cline(img_cline, head_last, tail_last)
+    
     # get head and tail.   
-    head_pts, tail_pts = self.skeleton_tip(img_s, ref_head=ref_head)    
-
+    head_pts, tail_pts = self.skeleton_tip(img_s, ref_head=ref_head, ref_tail=ref_tail)    
+    img_walk = np.copy(img_s)
     # build the graph with pixels on the centerline.
     cord_x, cord_y = np.where(img_s)
     # store the vertex index in the img_index image
@@ -331,7 +351,7 @@ class FindCenterline(object):
     
     
     
-  def skeleton_tip(self, img_skel, ref_head=[]):
+  def skeleton_tip(self, img_skel, ref_head=[], ref_tail=[]):
     # try get centerline from purely morphology method.
  
     (rows,cols) = np.nonzero(img_skel)
@@ -353,6 +373,9 @@ class FindCenterline(object):
     # choose the one closest to ref_pt.
     if len(ref_head)==0:
       ref_head = [img_skel.shape[0]/2, img_skel.shape[1]/2] 
+      
+    if len(ref_tail)==0:
+      ref_tail = [[img_skel.shape[0]/2, img_skel.shape[1]/2]] 
       #head_dis = 40
     #else:
      # head_dis = 40
@@ -365,14 +388,67 @@ class FindCenterline(object):
 #    head_pts = skel_coords[head_idx]
 #    tail_pts = skel_coords[np.invert(head_idx)]
     
+   
     head_idx = dist_head < 50
     head_pts = np.copy(skel_coords[head_idx])
-    tail_pts = np.copy(skel_coords)
 
+    
+    # use the cloest one to the ref_head and the cloest one for ref_tail.
+    if len(head_pts) == 0:
+      head_pts = list()
+      dist_head = (rows-ref_head[0])**2 + (cols-ref_head[1])**2
+      idx_min = np.argmin(dist_head)
+      point_min = np.array([[rows[idx_min],cols[idx_min]]])
+      c = point_min[0, 1]
+      r = point_min[0, 0]
+      img_skel[r,c] = 0
+      (col_neigh,row_neigh) = np.meshgrid(np.array([c-1,c,c+1]), np.array([r-1,r,r+1]))
+    # Convert into a single 1D array and check for non-zero locations
+      pix_neighbourhood = img_skel[row_neigh,col_neigh].ravel() > 0
+    
+      nodes_next = np.where(pix_neighbourhood)[0]
+    
+      for i in range(len(nodes_next)):
+        step_next = np.array([self.switcher2[nodes_next[i]]])
+        head_pts.append([r+step_next[0,0], c+step_next[0,1]])
+      
+      head_pts = np.array(head_pts)  
+      
+    tail_pts = list()  
+    
+    for i in range(len(ref_tail)):
+      dist_tail = np.sqrt( np.sum((skel_coords - ref_tail[i])**2, axis=1) )
+      tail_idx = dist_tail < 50
+      
+      if np.sum(tail_idx) == 0:
+        dist_tail = (rows-ref_tail[i][0])**2 + (cols-ref_tail[i][1])**2
+        idx_min = np.argmin(dist_tail)
+        if dist_tail[idx_min] < 50:
+          point_min = np.array([[rows[idx_min],cols[idx_min]]])
+          c = point_min[0, 1]
+          r = point_min[0, 0]
+          img_skel[r,c] = 0
+          (col_neigh,row_neigh) = np.meshgrid(np.array([c-1,c,c+1]), np.array([r-1,r,r+1]))
+          # Convert into a single 1D array and check for non-zero locations
+          pix_neighbourhood = img_skel[row_neigh,col_neigh].ravel() > 0
+      
+          nodes_next = np.where(pix_neighbourhood)[0]
+      
+          for i in range(len(nodes_next)):
+            step_next = np.array([self.switcher2[nodes_next[i]]])
+            tail_pts.append([r+step_next[0,0], c+step_next[0,1]])
+      
+    tail_pts = np.array(tail_pts)  
+    
+    if len(tail_pts):
+      tail_pts = np.vstack((np.copy(skel_coords), np.array(tail_pts)))
+    else:
+      tail_pts = np.copy(skel_coords)
 
     
     return head_pts, tail_pts
-    
+
+
  
   def GetCenterline(self, img_c, img_dir=[], img_tip=[]):
     # Get vortex from the img_c

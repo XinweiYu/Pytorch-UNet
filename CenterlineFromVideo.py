@@ -31,10 +31,10 @@ class CenterlineFromVideo(object):
   def __init__(self,cpu=False,erode=5,dilation=5):
     self.net_cline =  UNet(n_channels=3, n_classes=1)
     self.net_direction = UNet(n_channels=3, n_classes=8)
-    self.net_tip = UNet(n_channels=3, n_classes=2)
-    self.model_cline = "/home/xinweiy/github/checkpoints/cline_092.pth"
-    self.model_tip = "/home/xinweiy/github/checkpoints/tip_086.pth"
-    self.model_direction = "/home/xinweiy/github/checkpoints/direction_089.pth"
+    self.net_tip = UNet(n_channels=3, n_classes=5)
+    self.model_cline = "/home/xinweiy/github/checkpoints/cline_087.pth"
+    self.model_tip = "/home/xinweiy/github/checkpoints/tip_076.pth"
+    self.model_direction = "/home/xinweiy/github/checkpoints/direction_081.pth"
     self.cpu = cpu
     self.erode = erode
     self.dilation = dilation
@@ -59,6 +59,8 @@ class CenterlineFromVideo(object):
     self.fCline = FindCenterline(tip_r=3)
     self.cline = list()
     self.tips = np.array([[256,256], [256,256]])
+    self.length = 240
+
     
   def Video2Centerlines(self,path):
     # get centerlines for the video.
@@ -68,16 +70,37 @@ class CenterlineFromVideo(object):
     centerlines = list()
     head_last = []
     tail_last = []
+    self.cline_last = []
+    head_list = list()
+    tail_list = list()
+    cline_list = list()
     while success:
       success,image = vidcap.read()     
       count += 1
+      print( 'frame:{}'.format(count) )
       if success:
         cline = self.Image2Centerline(image, head_last=head_last, tail_last=tail_last)                     
 
       if len(cline)>10:
         centerlines.append(cline)
-        head_last = cline[0,:]
-        tail_last = cline[-1,:]
+        head_last = (cline[0,:]-150)*512/750
+        tail_last = (cline[-1,:]-150)*512/750
+        self.cline_last = np.copy((cline-150)*512/750)
+        if len(head_list)>=10:
+          head_list.pop(0)
+        if len(tail_list)>=10:
+          tail_list.pop(0)
+        if len(cline_list)>=50:
+          cline_list.pop(0)
+        head_list.append(head_last)
+        tail_list.append(tail_last)
+        cline_list.append(self.cline_last)
+        if len(head_list) > 0:
+          head_last = np.mean(np.array(head_list), axis=0)
+        if len(tail_list) > 0:
+          tail_last = np.mean(np.array(tail_list), axis=0)
+        if len(cline_list) > 0:
+          self.cline_last = np.mean(np.array(cline_list), axis=0)
       else:
         centerlines.append(centerlines[-1])
     
@@ -141,11 +164,11 @@ class CenterlineFromVideo(object):
     if len(head_ref):
       for i in range(len(head_ref)):
         cline_dict = self.fCline.cline_from_skel(img_c, img_dir, cline_dict,  
-                                         head_ref[i, :], tail_ref, head_last)
+                                         head_ref[i, :], tail_ref, head_last, tail_last)
     else:
       head_ref = head_last
       cline_dict = self.fCline.cline_from_skel(img_c, img_dir, cline_dict,  
-                                         head_ref, tail_ref, head_last)
+                                         head_ref, tail_ref, head_last, tail_last)
           
     cline = self.SelectCline(cline_dict, head_last, tail_last)
 
@@ -190,10 +213,12 @@ class CenterlineFromVideo(object):
   def SelectCline(self, cline_dict, head_last=[], tail_last=[]):
     # choose the cline that fit the former frame.
     num_cline = len(cline_dict["clines"])
+    
     if len(head_last)==0:
       head_last = [256, 256]
     if num_cline > 1:
       score_cline = list()
+      
       for i in range(num_cline):
         cline = cline_dict["clines"][i]
         if len(cline) > 10:
@@ -201,18 +226,40 @@ class CenterlineFromVideo(object):
           length = np.sum( np.sqrt(np.sum(cline_diff**2, axis=1)))
           
           dist_head = np.sqrt(np.sum((head_last - cline[0,:])**2))
-          if len(tail_last):
-            dist_tail = np.sqrt(np.sum((tail_last - cline[-1,:])**2))
+          
+          if len(self.cline_last):
+            cline_num = len(cline)-1
+            cline_idx = np.floor(np.arange(0,100,1)*cline_num/99)
+            cline_idx = cline_idx.astype(int)
+            dist_old = np.sqrt(np.sum((self.cline_last - cline[cline_idx])**2, axis=1))
+            dist_old = np.mean(dist_old)
           else:
-            dist_tail = 0
-          score = cline_dict["penalty"][i]*50 + np.abs(length-240) + dist_head + dist_tail                     
+            dist_old = 0
+          
+          
+          score = [(cline_dict["penalty"][i]-1)*100, 0.05*(length-self.length)**2, dist_head*5, dist_old*3]
+#          print('penalty{}'.format(cline_dict["penalty"][i]))
+#          print('length{}'.format(length))
+#          print('distance head{}'.format(dist_head))
+#          print('distance old{}'.format(dist_old))
           score_cline.append(score)
         else:
-          score_cline.append(float("Inf"))
-      cline_index = np.argmin(score_cline)
-      return self.distanceInterp(cline_dict["clines"][cline_index])
+          score_cline.append([float("Inf"), float("Inf"), float("Inf"), float("Inf")])
+      
+      cline_index = np.argmin(np.sum(np.array(score_cline), axis=1))
+      score_min = np.min(np.sum(np.array(score_cline), axis=1))
+      print(cline_index)
+      print(score_cline)
+      if score_min < 500:
+          return self.distanceInterp(cline_dict["clines"][cline_index])
+      else:
+          return []
     else:
       if num_cline:
+        cline = cline_dict["clines"][0]
+        cline_diff = np.diff(cline[0::5, :], axis=0)
+        length = np.sum( np.sqrt(np.sum(cline_diff**2, axis=1)))
+        self.length = 0.99*self.length + 0.01*length
         return self.distanceInterp(cline_dict["clines"][0])
       else:
         return []
