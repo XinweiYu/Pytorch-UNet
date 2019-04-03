@@ -1,0 +1,5 @@
+path/LowMagBrain*
+Traceback (most recent call last):
+  File "./CenterlineFromVideo.py", line 299, in <module>
+    path_cam = glob.glob(path+'/LowMagBrain*')[0]+'/cam1.avi'
+IndexError: list index out of range

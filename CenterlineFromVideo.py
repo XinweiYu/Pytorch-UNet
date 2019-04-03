@@ -4,19 +4,22 @@ Created on Wed Feb  6 11:38:41 2019
 
 @author: xinweiy
 """
-import argparse
+import skimage.morphology
+import sys
 import os
+import glob
 import pickle
 import numpy as np
 import torch
 import torch.nn.functional as F
 import cv2
-import skimage.morphology
+
 from PIL import Image
 from predict import predict_img
 from FindCenterline import FindCenterline
 from unet import UNet
 from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks#, dense_crf
+
 #from utils import plot_img_and_mask
 
 #import matplotlib.pyplot as plt
@@ -32,9 +35,9 @@ class CenterlineFromVideo(object):
     self.net_cline =  UNet(n_channels=3, n_classes=1)
     self.net_direction = UNet(n_channels=3, n_classes=8)
     self.net_tip = UNet(n_channels=3, n_classes=5)
-    self.model_cline = "/home/xinweiy/github/checkpoints/cline_087.pth"
-    self.model_tip = "/home/xinweiy/github/checkpoints/tip_076.pth"
-    self.model_direction = "/home/xinweiy/github/checkpoints/direction_081.pth"
+    self.model_cline = "../checkpoints/cline.pth"
+    self.model_tip = "../checkpoints/tip.pth"
+    self.model_direction = "../checkpoints/direction.pth"
     self.cpu = cpu
     self.erode = erode
     self.dilation = dilation
@@ -290,19 +293,29 @@ class CenterlineFromVideo(object):
     
     
 if __name__ == "__main__":
+  # get the folder to analyzed
+  path = sys.argv[1]
+  print(sys.argv[0])
+  print(sys.argv[1])
+  print(path+'/LowMagBrain*')
+  path_cam = glob.glob(path+'/LowMagBrain*')[0]+'/cam1.avi'
   clineFromVideo = CenterlineFromVideo()
-  path = "/scratch/network/xinweiy/cam1.avi"
+#  path = "/scratch/network/xinweiy/cam1.avi"
 
   tic = time.time()
-  cline = clineFromVideo.Video2Centerlines(path) 
+  cline = clineFromVideo.Video2Centerlines(path_cam) 
   toc = time.time()
   print("run time is: {}".format(toc-tic))
-  with open("/scratch/network/xinweiy/test.txt", "wb") as fp:   #Pickling
-    pickle.dump(cline, fp)
-
+#  with open("/scratch/network/xinweiy/test.txt", "wb") as fp:   #Pickling
+#    pickle.dump(cline, fp)
+  directory = path+'/BehaviorAnalysis/'
+  if not os.path.exists(directory):
+    os.makedirs(directory)
+    
   cline_dict = dict()
   cline_dict["centerline"] = cline
-  sio.savemat('/scratch/network/xinweiy/test.mat', cline_dict)
+  sio.savemat(directory+'centerline.mat', cline_dict)
+
 
 #  centerline = dict()
 #  centerline['centerline'] = cline
