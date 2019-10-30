@@ -21,10 +21,11 @@ import time
 
 class Worm_Cline_Dataset(Dataset):
     # this class is used to read worm data for center-line.
-    def __init__(self, data_dir, mode='train', tsfm=None):
+    def __init__(self, data_folder, mode='train', tsfm=None):
         # tsfm stands for transform.
-        self.data_dir = data_dir
-        self.worm_list = sorted(glob.glob(os.path.join(data_dir, '*.txt')))
+        self.data_folder = data_folder
+        cline_dir = os.join.path(data_folder, "output")
+        self.worm_list = sorted(glob.glob(os.path.join(cline_dir, '*.txt')))
         self.num_worm = len(self.worm_list)
         self.mode = mode
         # transform is process of the loaded image
@@ -46,7 +47,7 @@ class Worm_Cline_Dataset(Dataset):
                 os.system('rm ' + file_name)
                 print(file_name)
 
-        img_path = '../' + cline_dict['img_path']
+        img_path = os.path.join(self.data_folder, cline_dict['img_path'])
         worm_img = Image.open(img_path)
         worm_img = self.transform(worm_img)
         cline_prev = cline_dict['last_cline']
@@ -105,5 +106,6 @@ def train(data_dir, use_gpu=True):
     return model
 
 if __name__ == "__main__":
-    data_dir = "/tigress/LEIFER/Xinwei/github/Pytorch-Unet/output"
-    model = train(data_dir)
+    data_folder = "/tigress/LEIFER/Xinwei/github/Pytorch-Unet"
+    #data_dir = os.join.path(data_folder, "output")
+    model = train(data_folder)
