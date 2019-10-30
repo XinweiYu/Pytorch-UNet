@@ -4,4 +4,9 @@ __pycache__/
 checkpoints/
 *.pth
 *.jpg
+/venv/*
+*.pth
+*.idea
+/output/*
+/output_img/*
 SUBMISSION*

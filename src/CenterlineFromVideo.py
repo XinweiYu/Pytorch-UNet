@@ -28,8 +28,8 @@ import scipy.io as sio
 # This script is to get the centerline for the whole video.
 class CenterlineFromVideo(object):
   
-  def __init__(self,cpu=False,erode=5,dilation=5):
-    self.net_cline =  UNet(n_channels=3, n_classes=1)
+  def __init__(self, cpu=False, erode=5, dilation=5):
+    self.net_cline = UNet(n_channels=3, n_classes=1)
     self.net_direction = UNet(n_channels=3, n_classes=8)
     self.net_tip = UNet(n_channels=3, n_classes=5)
     self.model_cline = "/home/xinweiy/github/checkpoints/cline_087.pth"
@@ -62,7 +62,7 @@ class CenterlineFromVideo(object):
     self.length = 240
 
     
-  def Video2Centerlines(self,path):
+  def Video2Centerlines(self, path):
     # get centerlines for the video.
     vidcap = cv2.VideoCapture(path)
     success = True
@@ -75,7 +75,7 @@ class CenterlineFromVideo(object):
     tail_list = list()
     cline_list = list()
     while success:
-      success,image = vidcap.read()     
+      success, image = vidcap.read()
       count += 1
       print( 'frame:{}'.format(count) )
       if success:

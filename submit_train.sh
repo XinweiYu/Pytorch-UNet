@@ -6,7 +6,7 @@
 #SBATCH --ntasks-per-socket=1
 #SBATCH --gres=gpu:1
 
-#SBATCH -t 71:59:59
+#SBATCH -t 23:59:59
 # sends mail when process begins, and
 # when it ends. Make sure you define your email
 

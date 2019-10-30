@@ -1,7 +1,0 @@
-Traceback (most recent call last):
-  File "./CenterlineFromVideo.py", line 17, in <module>
-    from FindCenterline import FindCenterline
-  File "/home/xinweiy/github/Pytorch-UNet/FindCenterline.py", line 63
-    return path[::-1]
-         ^
-IndentationError: expected an indented block
