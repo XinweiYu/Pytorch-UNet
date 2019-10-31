@@ -24,7 +24,7 @@ class Worm_Cline_Dataset(Dataset):
     def __init__(self, data_folder, mode='train', tsfm=None):
         # tsfm stands for transform.
         self.data_folder = data_folder
-        cline_dir = os.join.path(data_folder, "output")
+        cline_dir = os.path.join(data_folder, "output")
         self.worm_list = sorted(glob.glob(os.path.join(cline_dir, '*.txt')))
         self.num_worm = len(self.worm_list)
         self.mode = mode
@@ -58,7 +58,7 @@ class Worm_Cline_Dataset(Dataset):
             worm_cline_prev[0, x, y] = 1 - i / 255
 
         sample['image'] = torch.cat((worm_img, worm_cline_prev), dim=0)
-        sample['cline'] = cline_dict['current_cline']
+        sample['cline'] = cline_dict['current_cline'][0:100:5, :]
         return sample
 
 def train(data_dir, use_gpu=True):
@@ -67,7 +67,7 @@ def train(data_dir, use_gpu=True):
     worm_data = Worm_Cline_Dataset(data_dir, mode='train', tsfm=tsfm)
     batch_size = 16
     data_loader = DataLoader(worm_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    model = vgg_cline16_bn(channel_in=2, channel_out=200)
+    model = vgg_cline16_bn(channel_in=2, channel_out=40)
     criterion_coord = L1Loss()
 
     if use_gpu:
@@ -87,7 +87,7 @@ def train(data_dir, use_gpu=True):
             model.train()
             optimizer.zero_grad()
             cline_out = model(worm_img)
-            cline_out = cline_out.view(-1, 100, 2)
+            cline_out = cline_out.view(-1, 20, 2)
             loss_cline = criterion_coord(cline_out, cline)
 
 
@@ -101,8 +101,7 @@ def train(data_dir, use_gpu=True):
             # ax2 = plt.subplot(1, 2, 2)
             # ax2.imshow(worm_img[0,1,:,:])
             # plt.show()
-
-    torch.save(model.state_dict(), 'cline_model.pth')
+    torch.save(model.state_dict(), '../trained_model/cline_model_' + str(epoch_idx) + '.pth')
     return model
 
 if __name__ == "__main__":

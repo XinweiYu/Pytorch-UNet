@@ -68,8 +68,8 @@ if __name__ == "__main__":
         if count % 10 == 0:
             plt.imshow(img1)
             plt.scatter(cline[:, 1], cline[:, 0], c='black', s=0.1)
-            #plt.show()
-            plt.savefig('./output/'+str(count)+'.png')
-            plt.clf()
+            plt.show()
+            # plt.savefig('./output/'+str(count)+'.png')
+            # plt.clf()
             print(crop[1]-crop[0], crop[3]-crop[2])
         count += 1
