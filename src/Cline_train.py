@@ -65,8 +65,9 @@ class Worm_Cline_Dataset(Dataset):
         sample['cline'] = cline_dict['current_cline'][0:100:5, :]
         # get the cline direction
         cline_dir = np.diff(cline_dict['current_cline'], axis=0)[0:100:5, :]
-
-        cline_dir = cline_dir / np.sqrt(np.sum(cline_dir ** 2, axis=1, keepdims=True))
+        norm = np.sqrt(np.sum(cline_dir ** 2, axis=1, keepdims=True))
+        norm[norm < 1e-6] = 1e-6
+        cline_dir = cline_dir / norm
         sample['cline_dir'] = np.copy(cline_dir)
         sample['cline_dir'][:, 0] = -cline_dir[:, 1]
         sample['cline_dir'][:, 1] = -cline_dir[:, 0]
