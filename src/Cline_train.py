@@ -17,6 +17,7 @@ from torch.nn import MSELoss, L1Loss
 from torch.optim import Adam, lr_scheduler
 from tqdm import tqdm
 import time
+import numpy as np
 
 
 class Worm_Cline_Dataset(Dataset):
@@ -62,16 +63,27 @@ class Worm_Cline_Dataset(Dataset):
 
         sample['image'] = torch.cat((worm_img, worm_cline_prev), dim=0)
         sample['cline'] = cline_dict['current_cline'][0:100:5, :]
+        # get the cline direction
+        cline_dir = np.diff(cline_dict['current_cline'], axis=0)[0:100:5, :]
+
+        cline_dir = cline_dir / np.sqrt(np.sum(cline_dir ** 2, axis=1, keepdims=True))
+        sample['cline_dir'] = np.copy(cline_dir)
+        sample['cline_dir'][:, 0] = -cline_dir[:, 1]
+        sample['cline_dir'][:, 1] = -cline_dir[:, 0]
         sample['head_pt'] = cline_dict['head_pt']
         return sample
 
 def train(data_dir, use_gpu=True):
     tsfm = transforms.ToTensor()
-    num_epoch = 1
+    num_epoch = 40
     worm_data = Worm_Cline_Dataset(data_dir, mode='train', tsfm=tsfm)
     batch_size = 16
     data_loader = DataLoader(worm_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    model = vgg_cline16_bn(channel_in=2, channel_out=2)
+    all_point = False
+    if all_point:
+        model = vgg_cline16_bn(channel_in=2, channel_out=40)
+    else:
+        model = vgg_cline16_bn(channel_in=2, channel_out=2)
     criterion_coord = L1Loss()
 
     if use_gpu:
@@ -79,36 +91,47 @@ def train(data_dir, use_gpu=True):
         criterion_coord.cuda()
 
     optimizer = Adam(model.parameters(), lr=1.0e-4)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.3)
-    tic = time.time()
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.3)
     for epoch_idx in tqdm(range(num_epoch)):
         for i, batch in enumerate(data_loader):
             worm_img = batch['image']
             cline = batch['cline']
             head_pt = batch['head_pt']
+            cline_dir = batch['cline_dir']
             if use_gpu:
                 worm_img = worm_img.cuda()
                 cline = cline.cuda().float()
                 head_pt = head_pt.cuda().float()
+                cline_dir = cline_dir.cuda().float()
             model.train()
             optimizer.zero_grad()
             cline_out = model(worm_img) * 512
-            cline_out = cline_out.view(-1, 20, 2)
-            #loss_cline = criterion_coord(cline_out, cline)
-            loss_cline = criterion_coord(cline_out, head_pt)
+            if all_point:
+                cline_out = cline_out.view(-1, 20, 2)
+                loss_cline = criterion_coord(cline_out, cline)
+                cline_diff = cline_out - cline
+                loss_dir = torch.mean(torch.abs(torch.sum(cline_diff * cline_dir, dim=2)))
+            else:
+                loss_cline = criterion_coord(cline_out, head_pt)
+                cline_diff = cline_out - head_pt
+                loss_dir = torch.mean(torch.abs(torch.sum(cline_diff * cline_dir[:, 0, :], dim=1)))
 
-
-            loss_cline.backward()
+            loss = loss_cline + loss_dir * 1
+            loss.backward()
             optimizer.step()
             if i % 100 == 0:
                 print('loss_cline', loss_cline.item())
+                print('loss_dir', loss_dir.item())
             # worm_img = worm_img.numpy()
             # ax1 = plt.subplot(1, 2, 1)
             # ax1.imshow(worm_img[0,0,:,:])
             # ax2 = plt.subplot(1, 2, 2)
             # ax2.imshow(worm_img[0,1,:,:])
             # plt.show()
-    torch.save(model.state_dict(), '../trained_model/cline_model_' + str(epoch_idx) + '.pth')
+        if scheduler.get_lr()[0] >= 2e-6:
+            scheduler.step()
+        model_name = 'all_dir1_'
+        torch.save(model.state_dict(), '../trained_model/'+ model_name + str(epoch_idx) + '.pth')
     return model
 
 def eval(data_dir, use_gpu=True):
