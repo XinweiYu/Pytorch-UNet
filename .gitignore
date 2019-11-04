@@ -9,4 +9,5 @@ checkpoints/
 *.idea
 /output/*
 /output_img/*
+/test_output/*
 SUBMISSION*

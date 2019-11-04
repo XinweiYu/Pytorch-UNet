@@ -7,6 +7,7 @@ import os
 from Align_Image import crop_coordinate
 from PIL import Image
 import pickle
+import glob
 
 if __name__=="__main__":
     Folders = ['/tigress/LEIFER/PanNeuronal/2018/20180329/BrainScanner20180329_152141', \
@@ -36,9 +37,16 @@ if __name__=="__main__":
                     '/tigress/LEIFER/PanNeuronal/2018/20180503/BrainScanner20180503_164957']
     img_idx = 1
     for folder in Folders:
-        path = os.path.join(folder, 'LowMagBrain'+folder[-15:]+'/cam1.avi')
+        path = glob.glob(os.path.join(folder, 'LowMagBrain*/cam1.avi'))[0]
         cline_path = os.path.join(folder, 'BehaviorAnalysis/centerline.mat')
+        try:
+            tip_path = glob.glob(os.path.join(folder, 'LowMagBrain*/tip_coodinates.mat'))[0]
+        except:
+            print(folder, 'no tip')
+            continue
         cline_mat = sio.loadmat(cline_path)
+        tip_mat = sio.loadmat(tip_path)
+        frame_head = np.where(tip_mat['head_pts'][:,0])[0]
         cline = cline_mat['centerline']
         vidcap = cv2.VideoCapture(path)
         success, img1 = vidcap.read()
@@ -51,10 +59,12 @@ if __name__=="__main__":
                 break
             count += 1
             img1 = img1[:, :, 0]
-            dist = np.sum((cline[:50, :, count] - cline_prev[:50, :])**2)
-            if dist < 1000:
+            if not count in frame_head:
                 continue
-            cline_prev = cline[:, :, count]
+            # dist = np.sum((cline[:50, :, count] - cline_prev[:50, :])**2)
+            # if dist < 1000:
+            #     continue
+            # cline_prev = cline[:, :, count]
             cline_dict['folder'] = folder
             cline_dict['img_path'] = 'output_img/' + str(img_idx) +'.png'
 
@@ -65,6 +75,7 @@ if __name__=="__main__":
             image_crop.save('../' + cline_dict['img_path'])
             cline_dict['last_cline'] = cline[:, :, count-1] - [crop[0], crop[2]]
             cline_dict['current_cline'] = cline[:, :, count] - [crop[0], crop[2]]
+            cline_dict['head_pt'] = tip_mat['head_pts'][count, ::-1] - [crop[0], crop[2]]
 
             # save match
             filename = os.path.join('../output', str(img_idx)) + '.txt'
