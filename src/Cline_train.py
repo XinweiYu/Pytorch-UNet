@@ -41,6 +41,7 @@ class Worm_Cline_Dataset(Dataset):
 
     def __getitem__(self, idx):
         # get idx the worm.
+        #tic = time.time()
         sample = dict()
         file_name = self.worm_list[idx]
         with open(file_name, "rb") as fp:  # Pickling
@@ -61,7 +62,11 @@ class Worm_Cline_Dataset(Dataset):
             y = max(0, min(511, int(cline_prev[i, 1])))
             worm_cline_prev[0, x, y] = 1 - i / 255
 
-        sample['image'] = torch.cat((worm_img, worm_cline_prev), dim=0)
+        xv, yv = torch.meshgrid([torch.arange(0, worm_img.size(1)), torch.arange(0, worm_img.size(2))])
+
+        xv = xv[None, :, :].float() / 512.
+        yv = yv[None, :, :].float() / 512.
+        sample['image'] = torch.cat((worm_img, worm_cline_prev, xv.float(), yv.float()), dim=0)
         sample['cline'] = cline_dict['current_cline'][0:100:5, :]
         # get the cline direction
         cline_dir = np.diff(cline_dict['current_cline'], axis=0)[0:100:5, :]
@@ -72,6 +77,7 @@ class Worm_Cline_Dataset(Dataset):
         sample['cline_dir'][:, 0] = -cline_dir[:, 1]
         sample['cline_dir'][:, 1] = -cline_dir[:, 0]
         sample['head_pt'] = cline_dict['head_pt']
+        #print('data time:', time.time()-tic)
         return sample
 
 def train(data_dir, use_gpu=True):
@@ -80,11 +86,11 @@ def train(data_dir, use_gpu=True):
     worm_data = Worm_Cline_Dataset(data_dir, mode='train', tsfm=tsfm)
     batch_size = 16
     data_loader = DataLoader(worm_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    all_point = False
+    all_point = True
     if all_point:
-        model = vgg_cline16_bn(channel_in=2, channel_out=40)
+        model = vgg_cline16_bn(channel_in=4, channel_out=40)
     else:
-        model = vgg_cline16_bn(channel_in=2, channel_out=2)
+        model = vgg_cline16_bn(channel_in=4, channel_out=2)
     criterion_coord = L1Loss()
 
     if use_gpu:
@@ -94,11 +100,14 @@ def train(data_dir, use_gpu=True):
     optimizer = Adam(model.parameters(), lr=1.0e-4)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.3)
     for epoch_idx in tqdm(range(num_epoch)):
+        tic1 = time.time()
         for i, batch in enumerate(data_loader):
+            tic = time.time()
             worm_img = batch['image']
             cline = batch['cline']
             head_pt = batch['head_pt']
             cline_dir = batch['cline_dir']
+            #print(worm_img.size())
             if use_gpu:
                 worm_img = worm_img.cuda()
                 cline = cline.cuda().float()
@@ -120,19 +129,25 @@ def train(data_dir, use_gpu=True):
             loss = loss_cline + loss_dir * 1
             loss.backward()
             optimizer.step()
+            print('time:', time.time()-tic)
             if i % 100 == 0:
                 print('loss_cline', loss_cline.item())
                 print('loss_dir', loss_dir.item())
+            if i == 200:
+                break
             # worm_img = worm_img.numpy()
             # ax1 = plt.subplot(1, 2, 1)
             # ax1.imshow(worm_img[0,0,:,:])
             # ax2 = plt.subplot(1, 2, 2)
             # ax2.imshow(worm_img[0,1,:,:])
             # plt.show()
+        print('epoch time', time.time()-tic1)
         if scheduler.get_lr()[0] >= 2e-6:
             scheduler.step()
-        model_name = 'all_dir1_'
+        model_name = 'all_dir1_testtime'
+        tic = time.time()
         torch.save(model.state_dict(), '../trained_model/'+ model_name + str(epoch_idx) + '.pth')
+        print('save time:', time.time()-tic)
     return model
 
 def eval(data_dir, use_gpu=True):
@@ -142,24 +157,29 @@ def eval(data_dir, use_gpu=True):
     batch_size = 1
     data_loader = DataLoader(worm_data, batch_size=batch_size, shuffle=False, num_workers=2)
     model = vgg_cline16_bn(channel_in=2, channel_out=40)
-    model_name = 'cline_model_4'
+    model_name = 'all_dir1_run3'
     model.load_state_dict(torch.load(os.path.join('../trained_model', model_name + '.pth')))
-    model.eval()
+
     if use_gpu:
         model.cuda()
+    model.train()
     for i, batch in enumerate(data_loader):
         worm_img = batch['image']
         cline = batch['cline']
         head_pt = batch['head_pt']
         if use_gpu:
-            worm_img = worm_img.cuda()
-        cline_out = model(worm_img) #* 512
+            worm_img = worm_img.float().cuda()
+            cline = cline.float().cuda()
+
+        cline_out = model(worm_img) * 512
         cline_out = cline_out.view(-1, 20, 2)
+
         worm_img = worm_img.detach().cpu().numpy()
         cline_out = cline_out.detach().cpu().numpy()
-
+        cline = cline.detach().cpu().numpy()
         plt.imshow(worm_img[0, 0, :, :])
         plt.scatter(cline_out[0, :, 1], cline_out[0, :, 0], c='black', s=0.1)
+        #plt.scatter(cline_out[0, 1], cline_out[0, 0], c='black', marker='o')
         plt.scatter(cline[0, :, 1], cline[0, :, 0], c='red', s=0.1)
 
         plt.scatter(head_pt[0,1], head_pt[0,0], marker='x', c='black')
