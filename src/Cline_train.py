@@ -80,6 +80,15 @@ class Worm_Cline_Dataset(Dataset):
         #print('data time:', time.time()-tic)
         return sample
 
+def line_dis(cline1, cline2):
+    loss = 0
+    cline_diff = cline1 - cline2
+    for i in range(cline_diff.size(1)-1):
+        loss += torch.sum(cline_diff[:, i:i+2, :] ** 2)
+        loss += torch.sum(cline_diff[:, i, :] * cline_diff[:, i+1, :])
+    return torch.sqrt(loss / cline_diff.size(1))
+
+
 def train(data_dir, use_gpu=True):
     tsfm = transforms.ToTensor()
     num_epoch = 40
@@ -118,7 +127,8 @@ def train(data_dir, use_gpu=True):
             cline_out = model(worm_img) * 512
             if all_point:
                 cline_out = cline_out.view(-1, 20, 2)
-                loss_cline = criterion_coord(cline_out, cline)
+                #loss_cline = criterion_coord(cline_out, cline)
+                loss_cline = line_dis(cline_out, cline)
                 cline_diff = cline_out - cline
                 loss_dir = torch.mean(torch.abs(torch.sum(cline_diff * cline_dir, dim=2)))
             else:
@@ -126,22 +136,21 @@ def train(data_dir, use_gpu=True):
                 cline_diff = cline_out - head_pt
                 loss_dir = torch.mean(torch.abs(torch.sum(cline_diff * cline_dir[:, 0, :], dim=1)))
 
-            loss = loss_cline + loss_dir * 1
+            loss = loss_cline #+ loss_dir * 1
             loss.backward()
             optimizer.step()
-            print('time:', time.time()-tic)
+            #print('time:', time.time()-tic)
             if i % 100 == 0:
                 print('loss_cline', loss_cline.item())
                 print('loss_dir', loss_dir.item())
-            if i == 200:
-                break
+
             # worm_img = worm_img.numpy()
             # ax1 = plt.subplot(1, 2, 1)
             # ax1.imshow(worm_img[0,0,:,:])
             # ax2 = plt.subplot(1, 2, 2)
             # ax2.imshow(worm_img[0,1,:,:])
             # plt.show()
-        print('epoch time', time.time()-tic1)
+        #print('epoch time', time.time()-tic1)
         if scheduler.get_lr()[0] >= 2e-6:
             scheduler.step()
         model_name = 'all_dir1_testtime'
