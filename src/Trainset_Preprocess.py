@@ -1,3 +1,4 @@
+import skimage.morphology as skmorp
 from scipy import interpolate
 import cv2
 import numpy as np
@@ -8,6 +9,26 @@ from Align_Image import crop_coordinate
 from PIL import Image
 import pickle
 import glob
+import time
+
+def get_curve_representation(cline, degree=10, num_point=300):
+    rep = np.zeros(2 * (degree+1))
+    pt = np.zeros((num_point, 2))
+    x_new = np.arange((num_point)) / num_point
+    x = np.arange(cline.shape[0]) / cline.shape[0]
+    y = cline[:, 0]
+    z = np.polyfit(x, y, degree)
+    fn = np.poly1d(z)
+    pt[:, 0] = fn(x_new)
+    rep[:degree+1] = z
+    y = cline[:, 1]
+    z = np.polyfit(x, y, degree)
+    rep[degree+1:] = z
+    fn = np.poly1d(z)
+    pt[:, 1] = fn(x_new)
+    print(pt.shape)
+    return rep, pt
+
 
 if __name__=="__main__":
     Folders = ['/tigress/LEIFER/PanNeuronal/2018/20180329/BrainScanner20180329_152141', \
@@ -57,6 +78,7 @@ if __name__=="__main__":
             success, img1 = vidcap.read()
             if not success:
                 break
+
             count += 1
             img1 = img1[:, :, 0]
             if not count in frame_head:
@@ -65,6 +87,7 @@ if __name__=="__main__":
             # if dist < 1000:
             #     continue
             # cline_prev = cline[:, :, count]
+            tic = time.time()
             cline_dict['folder'] = folder
             cline_dict['img_path'] = 'output_img/' + str(img_idx) +'.png'
 
@@ -77,9 +100,61 @@ if __name__=="__main__":
             cline_dict['current_cline'] = cline[:, :, count] - [crop[0], crop[2]]
             cline_dict['head_pt'] = tip_mat['head_pts'][count, ::-1] - [crop[0], crop[2]]
 
+            # produce a flow image
+            worm_img = img1[crop[0]:crop[1], crop[2]:crop[3]]
+            cline_crop = cline_dict['current_cline']
+            cline_img = np.zeros(worm_img.shape) > 1
+            #rep, cline_pt = get_curve_representation(cline_crop, degree=10, num_point=300)
+
+            for pt in cline_crop[1:98, :]:
+                x, y = int(pt[0]), int(pt[1])
+                if x >= 0 and x < 512 and y >= 0 and y < 512:
+                    cline_img[x, y] = 1
+            selem = skmorp.disk(3)
+            cline_img_dilate = skmorp.dilation(cline_img, selem)
+            cline_skel = skmorp.skeletonize(cline_img_dilate)
+            cline_pt = np.array(np.where(cline_skel)).T
+            selem = skmorp.disk(15)
+            worm_img_b = skmorp.dilation(cline_skel, selem)
+            worm_img_b *= np.logical_not(cline_img_dilate > 0)
+            #flow_img = np.zeros((worm_img_b.shape, 3))
+            num_f = np.sum(worm_img_b) + np.sum(cline_img_dilate)
+            num_total = worm_img_b.shape[0] * worm_img_b.shape[1]
+            # set weight for pixels for unbalanced class.
+            weight_img = np.ones(worm_img_b.shape) * num_f / num_total
+            weight_img[worm_img_b] = 1 - num_f / num_total
+            weight_img[cline_img_dilate] = 1 - num_f / num_total
+            # set flow image
+            pixel_flow_all = np.array(np.where(worm_img_b)).T
+            flow_x = np.zeros(worm_img_b.shape)
+            flow_y = np.zeros(worm_img_b.shape)
+            for pixel_flow in pixel_flow_all:
+                dir_vecs = cline_pt - np.array([pixel_flow])
+                dis2 = np.sum(dir_vecs ** 2, axis=1)
+                idx = np.argmin(dis2)
+                dir_vec = dir_vecs[idx, :] / np.sqrt(dis2[idx])
+                flow_x[pixel_flow[0], pixel_flow[1]] = dir_vec[0]
+                flow_y[pixel_flow[0], pixel_flow[1]] = dir_vec[1]
+
+            cline_dict['output_path'] = 'output_output/' + str(img_idx) + '.npy'
+            flow_img = np.dstack((0.5 * (flow_x + 1), 0.5 * (flow_y + 1), weight_img))
+            np.save(cline_dict['output_path'], flow_img.astype(np.float16))
+
+
+            # plt.subplot(1,3,1)
+            # plt.imshow(flow_img)
+            # plt.subplot(1,3,2)
+            # plt.imshow(flow_y)
+            # plt.subplot(1,3,3)
+            # plt.scatter(cline_pt[1, :], cline_pt[0, :], s=0.1, c='black')
+            # plt.imshow(worm_img)
+            # plt.show()
+
+
             # save match
             filename = os.path.join('../output', str(img_idx)) + '.txt'
             with open(filename, "wb") as fp:  # Pickling
                 pickle.dump(cline_dict, fp)
                 fp.close()
             img_idx += 1
+            #print('run time:', time.time()-tic)

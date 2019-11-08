@@ -10,4 +10,5 @@ checkpoints/
 /output/*
 /output_img/*
 /test_output/*
+/output_output/*
 SUBMISSION*
