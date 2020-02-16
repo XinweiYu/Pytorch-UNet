@@ -11,4 +11,5 @@ checkpoints/
 /output_img/*
 /test_output/*
 /output_output/*
+src/video_output/*
 SUBMISSION*

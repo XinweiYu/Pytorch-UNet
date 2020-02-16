@@ -10,6 +10,8 @@ from PIL import Image
 import pickle
 import glob
 import time
+from skimage.segmentation import active_contour
+
 
 def get_curve_representation(cline, degree=10, num_point=300):
     rep = np.zeros(2 * (degree+1))
@@ -95,10 +97,22 @@ if __name__=="__main__":
                          int(min(cline[:, 1, count-1])), int(max(cline[:, 1, count-1]))]
             crop = crop_coordinate(cline_lim, crop_size=512)
             image_crop = Image.fromarray(img1[crop[0]:crop[1], crop[2]:crop[3]])
-            image_crop.save('../' + cline_dict['img_path'])
             cline_dict['last_cline'] = cline[:, :, count-1] - [crop[0], crop[2]]
             cline_dict['current_cline'] = cline[:, :, count] - [crop[0], crop[2]]
             cline_dict['head_pt'] = tip_mat['head_pts'][count, ::-1] - [crop[0], crop[2]]
+
+            # a test of active contour centerline algorithm
+            init = cline_dict['last_cline']
+            snake = active_contour(image_crop, init,  boundary_condition='fixed-free',
+                                    alpha=0.015, beta=0.01, gamma=0.01, w_line=1, w_edge=0,
+                                   coordinates='rc')
+
+            plt.imshow(image_crop)
+            plt.scatter(init[:, 1], init[:, 0], s=1, c='red')
+            plt.scatter(snake[:, 1], snake[:, 0], s=1, c='yellow')
+            plt.show()
+
+
 
             # produce a flow image
             worm_img = img1[crop[0]:crop[1], crop[2]:crop[3]]
@@ -138,7 +152,7 @@ if __name__=="__main__":
 
             cline_dict['output_path'] = 'output_output/' + str(img_idx) + '.npy'
             flow_img = np.dstack((0.5 * (flow_x + 1), 0.5 * (flow_y + 1), weight_img))
-            np.save(cline_dict['output_path'], flow_img.astype(np.float16))
+
 
 
             # plt.subplot(1,3,1)
@@ -152,9 +166,11 @@ if __name__=="__main__":
 
 
             # save match
-            filename = os.path.join('../output', str(img_idx)) + '.txt'
-            with open(filename, "wb") as fp:  # Pickling
-                pickle.dump(cline_dict, fp)
-                fp.close()
+            # filename = os.path.join('../output', str(img_idx)) + '.txt'
+            # np.save(cline_dict['output_path'], flow_img.astype(np.float16))
+            # image_crop.save('../' + cline_dict['img_path'])
+            # with open(filename, "wb") as fp:  # Pickling
+            #     pickle.dump(cline_dict, fp)
+            #     fp.close()
             img_idx += 1
             #print('run time:', time.time()-tic)

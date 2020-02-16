@@ -200,7 +200,7 @@ class CenterlineFromVideo(object):
 
   def distanceInterp(self, cline, n=100):
     # interpolates curve to create n evenly spaced points along the curve
-    if len(cline)>10:    
+    if len(cline) > 10:
         cline_diff = np.diff(cline, axis=0)
         ds = np.sqrt(np.sum(cline_diff**2, axis=1))
         s = np.cumsum(ds)

@@ -496,8 +496,8 @@ class FindCenterline(object):
     # run the shortest path algorithm
     for i in range(len(head_pts)):
       cline_tails = list()
-      start = self.img_index[head_pts[i][0],head_pts[i][1]]
-      cline = self.g.shortestPath(start,ends)
+      start = self.img_index[head_pts[i][0], head_pts[i][1]]
+      cline = self.g.shortestPath(start, ends)
       for j in range(len(cline)):
         self.vort_cord[cline[j]]
         cline_tails.append(self.vort_cord[cline[j]])
